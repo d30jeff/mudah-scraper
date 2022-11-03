@@ -36,6 +36,7 @@
   "_moduleAliases": {
     "@providers": "./dist/providers",
     "@repositories": "./dist/repositories",
+    "@interfaces": "./dist/interfaces",
     "@workers": "./dist/workers"
   }
 }

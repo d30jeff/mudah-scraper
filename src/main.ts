@@ -1,4 +1,5 @@
 require('source-map-support').install();
+import { Props } from '@interfaces/props.interface';
 import { Prisma } from '@prisma/client';
 import { repositories } from '@repositories/index.repository';
 import axios from 'axios';
@@ -31,7 +32,7 @@ const scrape = async (page = 1) => {
       const $$ = load(view.data);
 
       const script = $$('script[id=__NEXT_DATA__]').html();
-      const parsed = JSON.parse(script);
+      const parsed: Props = JSON.parse(script);
 
       if (parsed?.props?.initialState?.adDetails?.byID) {
         const [ID] = Object.keys(parsed?.props?.initialState?.adDetails?.byID);
@@ -82,57 +83,61 @@ const scrape = async (page = 1) => {
 };
 
 async function exportExcel() {
-  const data = [];
-  let page = 1;
-  let hasMorePages = true;
+  return new Promise<void>(async (resolve, reject) => {
+    const data = [];
+    let page = 1;
+    let hasMorePages = true;
 
-  while (hasMorePages) {
-    const users = await repositories.user.findMany({
-      skip: (page - 1) * 500,
-      take: 500,
-    });
-
-    for (const user of users) {
-      data.push({
-        ID: user.ID,
-        Name: user.name,
-        Subject: user.subject,
-        Location: user.location,
-        Phone: user.phone,
+    while (hasMorePages) {
+      const users = await repositories.user.findMany({
+        skip: (page - 1) * 500,
+        take: 500,
       });
+
+      for (const user of users) {
+        data.push({
+          ID: user.ID,
+          Name: user.name,
+          Subject: user.subject,
+          Location: user.location,
+          Phone: user.phone,
+        });
+      }
+
+      hasMorePages = users.length >= 500;
+      page += 1;
     }
 
-    hasMorePages = users.length >= 500;
-    page += 1;
-  }
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    worksheet['!cols'] = [
+      {
+        width: 20,
+      },
+      {
+        width: 20,
+      },
+      {
+        width: 20,
+      },
+      {
+        width: 20,
+      },
+      {
+        width: 20,
+      },
+    ];
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  worksheet['!cols'] = [
-    {
-      width: 20,
-    },
-    {
-      width: 20,
-    },
-    {
-      width: 20,
-    },
-    {
-      width: 20,
-    },
-    {
-      width: 20,
-    },
-  ];
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'SheetJS');
-  const file = XLSX.writeFile(workbook, './Data.xlsx');
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'SheetJS');
+    await XLSX.writeFile(workbook, './Data.xlsx');
+    resolve();
+  });
 }
 
 async function main() {
-  // await scrape(106);
+  await scrape(1);
   await exportExcel();
+  console.info('Done');
 }
 
 main();
